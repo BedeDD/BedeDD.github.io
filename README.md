@@ -4,4 +4,4 @@ This is where I fiddle around with HTML stuff I've seen or wanted to try for a l
 
 My own, stimulus powered, version of an interactive onboarding process. Inspired by introjs, built with Bootstrap + Stimulus.
 
-Watch the current version in action: https://bededd.github.io/pages/onboarding.html
+Watch the current version in action: https://bededd.github.io/onboarding.html
