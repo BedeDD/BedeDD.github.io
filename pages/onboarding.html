@@ -23,46 +23,56 @@
         const application = Stimulus.Application.start();
 
         application.register("onboard", class extends Stimulus.Controller {
+          // Define targets for the controller
           static targets = [ "overlay", "explanation" ];
+
+          // Define values with types and defaults
           static values = {
             timeout: { type: Number, default: 1000 }
           }
 
+          /**
+           * Initializes the controller when connected to the DOM
+           * Sets up initial state, event listeners, and starts the onboarding process
+           */
           connect() {
             this.coordinates = [];
             this.currentPopover = null;
-            this.currentExplanation = 0
-            this.totalSteps = this.explanationTargets.length
-            this.demoButton = document.getElementById('onboardingDemoStarter')
+            this.currentExplanation = 0;
+            this.totalSteps = this.explanationTargets.length;
+            this.demoButton = document.getElementById('onboardingDemoStarter');
 
-            if (this.totalSteps <= this.currentExplanation) return
+            if (this.totalSteps <= this.currentExplanation) return;
 
-            // allow custom elements in popover
-            // further info: https://getbootstrap.com/docs/5.3/getting-started/javascript/#sanitizer
+            // Configure custom allowlist for Bootstrap Popover
             this.myCustomAllowList = {
               ...bootstrap.Tooltip.Default.allowList,
               div: ['class'],
               h1: [],
               p: [],
               button: ['class'],
-              '*': ['class'] // This allows class attributes on all elements
+              '*': ['class']
             };
 
+            // Set up demo button or start onboarding automatically
             if (this.demoButton) {
               this.demoButton.addEventListener('click', () => {
                 this.initializeCoordinates();
-                // monkey pathcing the start for the demo
-                this.currentExplanation = -1
+                this.currentExplanation = -1;
                 this.nextExplanation();
-              })
+              });
             } else {
               setTimeout(() => {
                 this.initializeCoordinates();
-                this.showExplanation(this.currentExplanation)
-              }, this.timeoutValue)
+                this.showExplanation(this.currentExplanation);
+              }, this.timeoutValue);
             }
           }
 
+          /**
+           * Calculates and stores the coordinates of each target element
+           * These coordinates are used for positioning the overlay and popover
+           */
           initializeCoordinates() {
             this.explanationTargets.forEach((target, _index) => {
               const explainThis = document.getElementById(target.dataset.targetElement);
@@ -80,6 +90,10 @@
             });
           }
 
+          /**
+           * Returns the configuration object for Bootstrap Popover
+           * @returns {Object} Popover configuration
+           */
           popoverConfig() {
             return {
               trigger: 'manual',
@@ -91,6 +105,9 @@
             };
           }
 
+          /**
+           * Disposes of the current Popover instance if it exists
+           */
           disposeCurrentPopover() {
             if (this.currentPopover) {
               this.currentPopover.dispose();
@@ -98,22 +115,33 @@
             }
           }
 
+          /**
+           * Navigates to the previous explanation step
+           */
           previousExplanation() {
-            if (this.currentExplanation <= 0) return
+            if (this.currentExplanation <= 0) return;
 
             console.log(`Current explanation was in previousExplanation: ${this.currentExplanation}`);
-            this.currentExplanation -= 1
-            this.showExplanation()
+            this.currentExplanation -= 1;
+            this.showExplanation();
           }
 
+          /**
+           * Navigates to the next explanation step
+           * Hides onboarding if at the last step
+           */
           nextExplanation() {
-            if (this.currentExplanation >= this.coordinates.length - 1) this.hideOnboarding()
+            if (this.currentExplanation >= this.coordinates.length - 1) this.hideOnboarding();
 
             console.log(`Current explanation was in nextExplanation: ${this.currentExplanation}`);
-            this.currentExplanation += 1
-            this.showExplanation()
+            this.currentExplanation += 1;
+            this.showExplanation();
           }
 
+          /**
+           * Displays the current step's explanation
+           * Positions the overlay, creates and shows the Popover
+           */
           showExplanation() {
             console.log(`Current explanation is: ${this.currentExplanation}`);
 
@@ -127,7 +155,7 @@
               this.overlayTarget.style.width = `${matchingCoordinate.width}px`;
               this.overlayTarget.style.height = `${matchingCoordinate.height}px`;
               this.content = matchingCoordinate.explanation.innerHTML;
-              this.overlayTarget.dataset.bsContent = this.populatedTemplate
+              this.overlayTarget.dataset.bsContent = this.populatedTemplate;
 
               // Create a MutationObserver to watch for when the popover is added to the DOM
               const observer = new MutationObserver((mutations, obs) => {
@@ -144,7 +172,7 @@
               setTimeout(() => {
                 this.currentPopover = new bootstrap.Popover(this.overlayTarget, this.popoverConfig());
                 this.currentPopover.show();
-                this.overlayTarget.scrollIntoView(true)
+                this.overlayTarget.scrollIntoView(true);
               }, 300);
             } else {
               this.overlayTarget.classList.remove('active');
@@ -152,47 +180,69 @@
             }
           }
 
+          /**
+           * Hides the onboarding overlay and disposes of the current Popover
+           */
           hideOnboarding() {
             this.disposeCurrentPopover();
             this.overlayTarget.classList.remove('active');
           }
 
+          /**
+           * Returns the populated HTML template for the Popover content
+           * @returns {string} Populated HTML template
+           */
           get populatedTemplate() {
             return this.template
               .replace('{{currentStep}}', this.currentExplanation + 1)
               .replace('{{totalSteps}}', this.totalSteps)
               .replace('{{prevButton}}', this.prevButton)
               .replace('{{nextButton}}', this.nextButton)
-              .replace('{{content}}', this.content)
+              .replace('{{content}}', this.content);
           }
 
+          /**
+           * Returns the HTML template structure for the Popover content
+           * @returns {string} HTML template
+           */
           get template() {
             return `
-              <div class="my-template">
-                <h1>Step {{currentStep}} of {{totalSteps}}</h1>
-                <p>{{content}}</p>
-                <div class="d-flex flex-row justify-content-between">
-                  {{prevButton}}
-                  {{nextButton}}
-                </div>
-              </div>
-            `
+      <div class="my-template">
+        <h1>Step {{currentStep}} of {{totalSteps}}</h1>
+        <p>{{content}}</p>
+        <div class="d-flex flex-row justify-content-between">
+          {{prevButton}}
+          {{nextButton}}
+        </div>
+      </div>
+    `;
           }
 
+          /**
+           * Returns the HTML for the previous button, or an empty string if on the first step
+           * @returns {string} Previous button HTML
+           */
           get prevButton() {
-            if (this.currentExplanation <= 0) return ''
+            if (this.currentExplanation <= 0) return '';
 
-            return `<button class="btn btn-secondary onboard-prev">Prev step</button>`
+            return `<button class="btn btn-secondary onboard-prev">Prev step</button>`;
           }
 
+          /**
+           * Returns the HTML for the next button, or a "Done" button if on the last step
+           * @returns {string} Next or Done button HTML
+           */
           get nextButton() {
             if (this.currentExplanation >= this.coordinates.length - 1) {
-              return `<button class="btn btn-primary onboard-finish">Done!</button>`
+              return `<button class="btn btn-primary onboard-finish">Done!</button>`;
             } else {
-              return `<button class="btn btn-primary onboard-next">Next step</button>`
+              return `<button class="btn btn-primary onboard-next">Next step</button>`;
             }
           }
 
+          /**
+           * Binds click events to the Popover navigation buttons
+           */
           bindPopoverEvents() {
             const popoverElement = document.querySelector('.onboard-popover');
             if (popoverElement) {
