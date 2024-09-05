@@ -24,11 +24,43 @@
 
         application.register("onboard", class extends Stimulus.Controller {
           static targets = [ "overlay", "explanation" ];
+          static values = {
+            timeout: { type: Number, default: 1000 }
+          }
 
           connect() {
             this.coordinates = [];
-            this.initializeCoordinates();
             this.currentPopover = null;
+            this.currentExplanation = 0
+            this.totalSteps = this.explanationTargets.length
+            this.demoButton = document.getElementById('onboardingDemoStarter')
+
+            if (this.totalSteps <= this.currentExplanation) return
+
+            // allow custom elements in popover
+            // further info: https://getbootstrap.com/docs/5.3/getting-started/javascript/#sanitizer
+            this.myCustomAllowList = {
+              ...bootstrap.Tooltip.Default.allowList,
+              div: ['class'],
+              h1: [],
+              p: [],
+              button: ['class'],
+              '*': ['class'] // This allows class attributes on all elements
+            };
+
+            if (this.demoButton) {
+              this.demoButton.addEventListener('click', () => {
+                this.initializeCoordinates();
+                // monkey pathcing the start for the demo
+                this.currentExplanation = -1
+                this.nextExplanation();
+              })
+            } else {
+              setTimeout(() => {
+                this.initializeCoordinates();
+                this.showExplanation(this.currentExplanation)
+              }, this.timeoutValue)
+            }
           }
 
           initializeCoordinates() {
@@ -39,10 +71,10 @@
               const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
               this.coordinates.push({
-                top: rect.top + scrollTop,
-                left: rect.left + scrollLeft,
-                width: rect.width,
-                height: rect.height,
+                top: rect.top + scrollTop - 5,
+                left: rect.left + scrollLeft - 5,
+                width: rect.width + 10,
+                height: rect.height + 10,
                 explanation: target
               });
             });
@@ -54,7 +86,8 @@
               customClass: 'onboard-popover',
               html: true,
               placement: 'auto',
-              container: 'body'
+              container: 'body',
+              allowList: this.myCustomAllowList
             };
           }
 
@@ -65,25 +98,57 @@
             }
           }
 
-          setOverlayPosition(event) {
-            const step = event.params.step;
+          previousExplanation() {
+            if (this.currentExplanation <= 0) return
+
+            console.log(`Current explanation was in previousExplanation: ${this.currentExplanation}`);
+            this.currentExplanation -= 1
+            this.showExplanation()
+          }
+
+          nextExplanation() {
+            if (this.currentExplanation >= this.coordinates.length - 1) this.hideOnboarding()
+
+            console.log(`Current explanation was in nextExplanation: ${this.currentExplanation}`);
+            this.currentExplanation += 1
+            this.showExplanation()
+          }
+
+          showExplanation() {
+            console.log(`Current explanation is: ${this.currentExplanation}`);
+
             this.disposeCurrentPopover();
 
-            if (parseInt(step) - 1 < this.coordinates.length) {
-              const matchingCoordinate = this.coordinates[parseInt(step) - 1];
+            if (this.currentExplanation <= this.coordinates.length) {
+              const matchingCoordinate = this.coordinates[this.currentExplanation];
               this.overlayTarget.classList.add('active');
               this.overlayTarget.style.top = `${matchingCoordinate.top}px`;
               this.overlayTarget.style.left = `${matchingCoordinate.left}px`;
               this.overlayTarget.style.width = `${matchingCoordinate.width}px`;
               this.overlayTarget.style.height = `${matchingCoordinate.height}px`;
-              this.overlayTarget.dataset.bsContent = matchingCoordinate.explanation.innerHTML;
+              this.content = matchingCoordinate.explanation.innerHTML;
+              this.overlayTarget.dataset.bsContent = this.populatedTemplate
+
+              // Create a MutationObserver to watch for when the popover is added to the DOM
+              const observer = new MutationObserver((mutations, obs) => {
+                const popover = document.querySelector('.onboard-popover');
+                if (popover) {
+                  this.bindPopoverEvents();
+                  obs.disconnect(); // Stop observing once we've found the popover
+                }
+              });
+
+              // Start observing the document with the configured parameters
+              observer.observe(document.body, { childList: true, subtree: true });
+
               setTimeout(() => {
                 this.currentPopover = new bootstrap.Popover(this.overlayTarget, this.popoverConfig());
                 this.currentPopover.show();
+                this.overlayTarget.scrollIntoView(true)
               }, 300);
             } else {
               this.overlayTarget.classList.remove('active');
-              console.error(`No matching explanation found for step: ${step}`);
+              console.error(`No matching explanation found for step: ${this.currentExplanation}`);
             }
           }
 
@@ -91,17 +156,70 @@
             this.disposeCurrentPopover();
             this.overlayTarget.classList.remove('active');
           }
+
+          get populatedTemplate() {
+            return this.template
+              .replace('{{currentStep}}', this.currentExplanation + 1)
+              .replace('{{totalSteps}}', this.totalSteps)
+              .replace('{{prevButton}}', this.prevButton)
+              .replace('{{nextButton}}', this.nextButton)
+              .replace('{{content}}', this.content)
+          }
+
+          get template() {
+            return `
+              <div class="my-template">
+                <h1>Step {{currentStep}} of {{totalSteps}}</h1>
+                <p>{{content}}</p>
+                <div class="d-flex flex-row justify-content-between">
+                  {{prevButton}}
+                  {{nextButton}}
+                </div>
+              </div>
+            `
+          }
+
+          get prevButton() {
+            if (this.currentExplanation <= 0) return ''
+
+            return `<button class="btn btn-secondary onboard-prev">Prev step</button>`
+          }
+
+          get nextButton() {
+            if (this.currentExplanation >= this.coordinates.length - 1) {
+              return `<button class="btn btn-primary onboard-finish">Done!</button>`
+            } else {
+              return `<button class="btn btn-primary onboard-next">Next step</button>`
+            }
+          }
+
+          bindPopoverEvents() {
+            const popoverElement = document.querySelector('.onboard-popover');
+            if (popoverElement) {
+              popoverElement.addEventListener('click', (event) => {
+                if (event.target.classList.contains('onboard-prev')) {
+                  this.previousExplanation();
+                } else if (event.target.classList.contains('onboard-next')) {
+                  this.nextExplanation();
+                } else if (event.target.classList.contains('onboard-finish')) {
+                  this.hideOnboarding();
+                }
+              });
+            }
+          }
         });
       })();
     </script>
     <style>
+        html {
+            scroll-behavior: smooth;
+        }
       .onboardOverlay {
         box-shadow:
-          rgb(233 77 77 / 80%) 0px 0px 1px 2px,
-          rgb(62 30 30 / 50%) 0px 0px 0px 5000px;
+          rgb(233 77 77 / 80%) 0 0 1px 2px,
+          rgb(84 84 84 / 50%) 0 0 0 5000px;
         box-sizing: content-box;
         position: absolute;
-        z-index: 9999998;
         border-radius: 4px;
         transition: all .3s ease-out;
         z-index: 9998;
@@ -119,81 +237,78 @@
     </style>
 </head>
 <body class="d-flex flex-column h-100">
-    <header class="p-3 mb-3 border-bottom">
-      <div class="container">
-        <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
-          <a href="/" class="d-flex align-items-center mb-2 mb-lg-0 link-body-emphasis text-decoration-none">
-            <svg class="bi me-2" width="40" height="32" role="img" aria-label="Bootstrap"><use xlink:href="#bootstrap"></use></svg>
-          </a>
-
-          <ul class="nav col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
-            <li><a id="iverview" href="#" class="nav-link px-2 link-secondary">Overview</a></li>
-            <li><a id="inventory" href="#" class="nav-link px-2 link-body-emphasis">Inventory</a></li>
-            <li><a id="customers" href="#" class="nav-link px-2 link-body-emphasis">Customers</a></li>
-            <li><a id="products" href="#" class="nav-link px-2 link-body-emphasis">Products</a></li>
-          </ul>
-
-          <form class="col-12 col-lg-auto mb-3 mb-lg-0 me-lg-3" role="search">
-            <input type="search" class="form-control" placeholder="Search..." aria-label="Search">
-          </form>
-
-          <div class="dropdown text-end">
-            <a href="#" class="d-block link-body-emphasis text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-              <img src="https://github.com/mdo.png" alt="mdo" width="32" height="32" class="rounded-circle">
-            </a>
-            <ul class="dropdown-menu text-small">
-              <li><a class="dropdown-item" href="#">New project...</a></li>
-              <li><a class="dropdown-item" href="#">Settings</a></li>
-              <li><a class="dropdown-item" href="#">Profile</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#">Sign out</a></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </header>
+    <div id="header-placeholder"></div>
     <main class="flex-shrink-0 flex-grow-1">
       <div class="container mt-5">
-        
+        <article>
+          <h1 class="mb-4" id="feature-intro">Interactive Onboarding Feature</h1>
+
+          <div class="row">
+            <div class="col-md-8">
+              <p class="lead">Revolutionize your user onboarding experience with this sleek, developer-friendly feature! With just a simple HTML snippet and a Stimulus controller, you can create an interactive guided tour of your web page.</p>
+
+              <section id="key-highlights">
+                <h2 class="mt-4 mb-3">Key Highlights</h2>
+                <ul class="list-group list-group-flush mb-4">
+                  <li class="list-group-item">🚀 Effortless setup: Add a few data attributes to your HTML</li>
+                  <li class="list-group-item">🎨 Visual appeal: Highlight elements with overlays and borders</li>
+                  <li class="list-group-item">📚 Informative: Provide step-by-step explanations</li>
+                  <li class="list-group-item">👥 User-friendly: Allow users to navigate back and forth</li>
+                  <li class="list-group-item">🔧 Flexible: Easily customizable for any page element</li>
+                </ul>
+
+                <p>Elevate your user experience and boost engagement with this powerful, yet easy-to-implement onboarding tool. Make your website come alive and guide users through its features like never before!</p>
+              </section>
+            </div>
+          </div>
+
+          <div class="row mt-5">
+            <div class="col-md-12" id="happy-dev-happy-life">
+              <h2 class="mb-3">Developer Implementation</h2>
+              <p>To add this feature to your website, simply include the following HTML snippet and ensure the Stimulus controller "onboarding" is in your project:</p>
+              <pre class="bg-light p-3 rounded"><code>&lt;div class="onboard-wrapper" data-controller="onboard" data-onboard-timeout-value="1000"&gt;
+    &lt;div data-onboard-target="overlay" class="onboardOverlay" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="bottom" data-bs-content=""&gt;&lt;/div&gt;
+    &lt;ol class="d-none"&gt;
+        &lt;li data-onboard-target="explanation" data-target-element="feature-1"&gt;This is the first feature you want to explain to your users.&lt;/li&gt;
+        &lt;li data-onboard-target="explanation" data-target-element="feature-2"&gt;Here's another important feature of your website.&lt;/li&gt;
+    &lt;/ol&gt;
+&lt;/div&gt;</code></pre>
+              <p class="mt-3">Customize the <code>data-target-element</code> attributes to match the IDs of the elements you want to explain, and update the explanation text for each step.</p>
+              <p>Want to see it in action? Use this button!</p>
+              <button id="onboardingDemoStarter" class="btn btn-success">Start Demo</button>
+            </div>
+          </div>
+        </article>
       </div>
     </main>
-    <footer class="py-3 mt-auto">
-      <ul class="nav justify-content-center border-bottom pb-3 mb-3">
-        <li class="nav-item" id="footerHome"><a href="#" class="nav-link px-2 text-body-secondary">Home</a></li>
-        <li class="nav-item" id="footerFeatures"><a href="#" class="nav-link px-2 text-body-secondary">Features</a></li>
-        <li class="nav-item" id="footerPricing"><a href="#" class="nav-link px-2 text-body-secondary">Pricing</a></li>
-        <li class="nav-item" id="footerFAQs"><a href="#" class="nav-link px-2 text-body-secondary">FAQs</a></li>
-        <li class="nav-item" id="footerAbout"><a href="#" class="nav-link px-2 text-body-secondary">About</a></li>
-      </ul>
-      <p class="text-center text-body-secondary">© 2024 Benjamin Deutscher</p>
-    </footer>
+    <div id="footer-placeholder"></div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        fetch('_header.html')
+          .then(response => response.text())
+          .then(data => {
+            document.getElementById('header-placeholder').outerHTML = data;
+          })
+          .catch(error => console.error('Fehler beim Laden des Headers:', error));
+
+        fetch('_footer.html')
+          .then(response => response.text())
+          .then(data => {
+            document.getElementById('footer-placeholder').outerHTML = data;
+          })
+          .catch(error => console.error('Fehler beim Laden des Footers:', error));
+      });
+    </script>
     <!-- das ist alles am Markup, was benötigt wird. Die buttons kommen später auch weg, die sind nur für den POC hier -->
-    <div class="onboard-wrapper"  data-controller="onboard">
-      <div data-onboard-target="overlay" class="onboardOverlay" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="bottom" data-bs-content="Das ist die Erklärung für den Menüpunkt 'Overview'."></div>
+    <div class="onboard-wrapper"  data-controller="onboard" data-onboard-timeout-value="1000">
+      <div data-onboard-target="overlay" class="onboardOverlay" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="bottom" data-bs-content=""></div>
       <ol class="d-none">
-        <!-- data-target-element = ID vom Ziel Element -->
-        <li data-onboard-target="explanation" data-target-element="iverview">Das ist die Erklärung für den Menüpunkt <b>Overview!</b></li>
-        <li data-onboard-target="explanation" data-target-element="inventory">Das ist die Erklärung für den Menüpunkt <b class="text-primary">Inventory!</b></li>
-        <li data-onboard-target="explanation" data-target-element="customers">Das ist die Erklärung für den Menüpunkt <b class="text-success">Customers</b>!</li>
-        <li data-onboard-target="explanation" data-target-element="products">Das ist die Erklärung für den Menüpunkt <b class="text-warning">Products</b>!</li>
-        <li data-onboard-target="explanation" data-target-element="footerHome">Das ist die Erklärung für den Footer-Link <b class="text-warning">footerHome</b>!</li>
-        <li data-onboard-target="explanation" data-target-element="footerFeatures">Das ist die Erklärung für den Footer-Link <b class="text-warning">footerFeatures</b>!</li>
-        <li data-onboard-target="explanation" data-target-element="footerPricing">Das ist die Erklärung für den Footer-Link <b class="text-warning">footerPricing</b>!</li>
-        <li data-onboard-target="explanation" data-target-element="footerFAQs">Das ist die Erklärung für den Footer-Link <b class="text-warning">footerFAQs</b>!</li>
-        <li data-onboard-target="explanation" data-target-element="footerAbout">Das ist die Erklärung für den Footer-Link <b class="text-warning">footerAbout</b>!</li>
+        <li data-onboard-target="explanation" data-target-element="onboarding">Under ‘Interactive Onboarding’ you will find what you are reading here. A way to interactively familiarise people with the content of the site.</li>
+        <li data-onboard-target="explanation" data-target-element="til-rails">Here you will find a kind of ‘blog’ in which I enter my TIL (today I learned) on the subject of Ruby on Rails.</li>
+        <li data-onboard-target="explanation" data-target-element="feature-intro">This is the intro of the feature page (or really just a dummy step).</li>
+        <li data-onboard-target="explanation" data-target-element="key-highlights">This are the key highlights (or really just a dummy step).</li>
+        <li data-onboard-target="explanation" data-target-element="happy-dev-happy-life">This highlights how little work it is to use the feature.</li>
       </ol>
-      <div class="d-flex flex-row gap-3">
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="1">Show Step 1</button>
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="2">Show Step 2</button>
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="3">Show Step 3</button>
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="4">Show Step 4</button>
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="5">Show Step 5</button>
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="6">Show Step 6</button>
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="7">Show Step 7</button>
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="8">Show Step 8</button>
-        <button type="button"class="mt-5" data-action="onboard#setOverlayPosition" data-onboard-step-param="9">Show Step 9</button>
-        <button type="button"class="mt-5" data-action="onboard#hideOnboarding">Hide Onboarding</button>
-      </div>
     </div>
 </body>
 </html>

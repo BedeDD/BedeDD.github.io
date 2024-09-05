@@ -14,22 +14,22 @@
   <div class="container mt-5">
     <article class="blog-post">
       <h2 class="display-5 link-body-emphasis mb-1">Placeholder für inputs</h2>
-      <p class="blog-post-meta">5. September 24</p>
+      <p class="blog-post-meta">5 September 24</p>
 
       <p>
-        Ich saß gerade an einem Feature für die Website eines Kunden und habe im Rahmen dessen neue Felder in das bereits vorhandene Formular eingefügt. Dabei wollte ich aussagekräftige Platzhalter hinzufügen, also habe ich die Option <code>placeholder: t('activerecord.palceholders.ward.line1')</code> verwendet.<br>
-        Das hat in erster Linie den Zweck erfüllt, aber auch den Gedanken in mir geweckt <i>Das ist ganz schön viel Schreibarbeit für sowas verhältnismäßig simples!</i>. Der zweite Gedanke war <i>Das wäre doch ein Feature für Rails.</i>. Also habe ich mir zunächst den Code im <code>FormHelper</code> angeschaut und welche Optionen dieser bietet.<br>
-        Rails wäre nicht Rails, wenn es nicht an ein sol grundlegendes Feature gedacht hatte.<br>
+        I was working on a feature for a customer's website and added new fields to the existing form. I wanted to add meaningful placeholders, so I used the option <code>placeholder: t('activerecord.palceholders.ward.line1')</code>.<br>
+        That primarily served the purpose, but it also made me think <i>That's quite a lot of writing for something so relatively simple!</i> The second thought was <i>That would be a feature for Rails</i>. So I first looked at the code in the <code>FormHelper</code> and what options it offers.<br>
+        Rails wouldn't be Rails if it hadn't thought of such a fundamental feature.<br>
         <br>
-        <b>ActionView::Helpers::Tags::Placeholderable</b> heißt das gute Teil. <br>
-        Nutzt man nun statt eines <code>String</code> ein <code>true</code> als Wert für <code>placeholder</code>, wird automatisch der Attributname als Platzhalter verwendet.
+        <b>ActionView::Helpers::Tags::Placeholderable</b> is the name of the thing. <br>
+        Instead of a <code>String</code> using <code>true</code> as value for the <code>placeholder</code> option, the attribute name is automatically used as a placeholder.
       </p>
       <ul>
         <li><code><%= form.text_field :foo, placeholder: true %></code></li>
         <li>Lookup: <code>helpers.placeholder.{MODE_NAME}.{ATTRIBUTE_NAME} || activerecord.attributes.{MODEL_NAME}.{ATTRIBUTE_NAME}</code></li>
       </ul>
       <p>
-        Für dieses Beispiel <code><%= form.text_field :line1, placeholder: true %></code> im Model <code>Ward</code> wird also unter <code>de.helpers.placeholder.ward.line1</code> nach einem Text für den Platzhalter geschaut.
+        For this example the placeholder for <code><%= form.text_field :line1, placeholder: true %></code> in the model <code>Ward</code> is expected under <code>de.helpers.placeholder.ward.line1</code> in your locales.
       </p>
     </article>
 
