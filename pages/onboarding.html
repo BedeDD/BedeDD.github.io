@@ -334,14 +334,14 @@
     <div id="footer-placeholder"></div>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        fetch('/_header.html')
+        fetch('/html-playground/pages/_header.html')
           .then(response => response.text())
           .then(data => {
             document.getElementById('header-placeholder').outerHTML = data;
           })
           .catch(error => console.error('Fehler beim Laden des Headers:', error));
 
-        fetch('/_footer.html')
+        fetch('/html-playground/pages/_footer.html')
           .then(response => response.text())
           .then(data => {
             document.getElementById('footer-placeholder').outerHTML = data;
