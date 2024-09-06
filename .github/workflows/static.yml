@@ -3,11 +3,8 @@ name: Deploy static content to Pages
 
 on:
   # Runs on pushes targeting the default branch
-  #  push:
-  #    branches: ["main"]
-  # Runs on releases being released
-  release:
-    types: [ released ]
+  push:
+    branches: ["main"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -31,27 +28,16 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')  # Only run on tags starting with 'v'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{github.event.release.tag_name}}
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      
-      # Add a build step if needed
-      # - name: Build project
-      #   run: |
-      #     # Add your build commands here
-      #     # For example: npm ci && npm run build
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './pages'  # Make sure this path contains your built files
-
+          # Upload entire repository
+          path: '.'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
