@@ -212,8 +212,11 @@
          */
         get template() {
           return `
-      <div class="my-template">
-        <h1>Step {{currentStep}} of {{totalSteps}}</h1>
+      <div class="overlay-template">
+        <div class="d-flex flex-row justify-content-between">
+          <h1>Step {{currentStep}} of {{totalSteps}}</h1>
+          <button type="button" class="btn-close onboard-close" aria-label="Close"></button>
+        </div>
         <p>{{content}}</p>
         <div class="d-flex flex-row justify-content-between">
           {{prevButton}}
@@ -257,6 +260,8 @@
               } else if (event.target.classList.contains('onboard-next')) {
                 this.nextExplanation();
               } else if (event.target.classList.contains('onboard-finish')) {
+                this.hideOnboarding();
+              } else if (event.target.classList.contains('onboard-close')) {
                 this.hideOnboarding();
               }
             });
