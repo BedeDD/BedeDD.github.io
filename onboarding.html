@@ -187,6 +187,10 @@
         hideOnboarding() {
           this.disposeCurrentPopover();
           this.overlayTarget.classList.remove('active');
+          this.overlayTarget.style.top = '0px';
+          this.overlayTarget.style.left = '0px';
+          this.overlayTarget.style.width = '0px';
+          this.overlayTarget.style.height = '0px';
         }
 
         /**
@@ -274,7 +278,7 @@
           border-radius: 4px;
           transition: all .3s ease-out;
           z-index: 9998;
-          pointer-events: all;
+          pointer-events: none;
           opacity: 0;
       }
 
@@ -355,8 +359,6 @@
 
   <p class="text-center text-body-secondary">© 2024 Benjamin Deutscher</p>
 </footer>
-
-<!-- das ist alles am Markup, was benötigt wird. Die buttons kommen später auch weg, die sind nur für den POC hier -->
 <div class="onboard-wrapper" data-controller="onboard" data-onboard-timeout-value="1000">
   <div data-onboard-target="overlay" class="onboardOverlay" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="bottom" data-bs-content=""></div>
   <ol class="d-none">
